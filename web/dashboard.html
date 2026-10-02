@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ورود به داشبورد</title>
+<style>:root{--bg:#f5f6f8;--fg:#151a22;--card:#fff;--bd:#e3e6eb;--acc:#1f5eff}@media(prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e8eaee;--card:#181b21;--bd:#2a2f38;--acc:#6f9bff}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.9 Tahoma,sans-serif;padding:16px}.c{max-width:620px;margin:24px auto;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px}
+code,pre{direction:ltr;text-align:left;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:2px 8px}pre{padding:10px;overflow:auto;white-space:pre-wrap}button{font:inherit;padding:8px 16px;border-radius:8px;border:1px solid var(--acc);background:var(--acc);color:#fff;cursor:pointer}a{color:var(--acc)}</style></head>
+<body><div class="c"><h2 id="t">در حال بررسی سرور ترموکس…</h2>
+<div id="off" hidden><p>سرور ترموکس خاموش است. در Termux این دستور را بزن و پنجره را باز نگه دار:</p>
+<pre>sh /sdcard/Download/programming/iran_market_bot/web/start-termux.sh</pre>
+<p>اولین بار قبلش: <code>pkg install nodejs</code> و <code>termux-setup-storage</code></p>
+<p>وقتی نوشت «داشبورد آماده است»، این دکمه را بزن (یا مستقیم <a href="http://127.0.0.1:8787/">http://127.0.0.1:8787/</a> را باز کن):</p>
+<button id="b">دوباره بررسی کن</button></div></div>
+<script>
+// سرور داشبورد روی ۸۷۸۷ است؛ اگر آن پورت پر بوده باشد تا ۸۷۹۷ را هم می‌گردد
+var PORTS = []; for (var p = 8787; p <= 8797; p++) PORTS.push(p);
+function probe(i) {
+  if (i >= PORTS.length) return Promise.reject();
+  var base = 'http://127.0.0.1:' + PORTS[i] + '/';
+  return fetch(base + 'api/ping', { mode: 'no-cors', cache: 'no-store' }).then(function () {
+    // no-cors پاسخ مات می‌دهد؛ یعنی فقط می‌فهمیم «چیزی» روی این پورت جواب می‌دهد. اگر برنامه‌ی دیگری آنجا بود و صفحه‌ی غلط باز شد، آدرس دقیق را از Termux بخوان.
+    return base;
+  }).catch(function () { return probe(i + 1); });
+}
+function go() {
+  document.getElementById('t').textContent = 'در حال بررسی سرور ترموکس…';
+  document.getElementById('off').hidden = true;
+  probe(0).then(function (base) { location.replace(base); })
+    .catch(function () { document.getElementById('t').textContent = '🔴 سرور ترموکس خاموش است'; document.getElementById('off').hidden = false; });
+}
+document.getElementById('b').onclick = go;
+go();
+</script></body></html>

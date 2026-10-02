@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>داشبورد بازارهای مالی ایران</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="top">
+  <h1>داشبورد بازارهای مالی ایران</h1>
+  <div class="bar">
+    <button class="act" id="collectNo" title="فقط سایت‌هایی که در ⚙ تنظیمات «بدون VPN» گذاشته‌ای. VPN گوشی را خاموش کن.">🌐 دانلود بدون VPN</button>
+    <button class="act" id="collectVpn" title="فقط سایت‌هایی که در ⚙ تنظیمات «با VPN» گذاشته‌ای. VPN گوشی را روشن کن.">🔒 دانلود با VPN</button>
+    <button class="act primary" id="full" title="تحلیل کامل روی داده‌های جمع‌شده (بدون اینترنت)">✅ اجرای کامل از داده‌های جمع‌شده</button>
+    <button class="act" id="run" title="همه‌ی منابع را همین الان با شبکه‌ی فعلی می‌گیرد و تحلیل می‌کند">▶ اجرای مستقیم</button>
+    <button class="act" id="demo" title="داده ساختگی، بدون اینترنت">🧪 دمو</button>
+    <button class="act" id="auto" title="اجرای دوره‌ای (صفحه باید باز بماند)">🔁 خودکار</button>
+    <button class="act" id="copy" disabled>📋 کپی پرامپت Claude</button>
+    <button class="act" id="dl" disabled>⬇ دانلود پرامپت</button>
+    <button class="act" id="settings">⚙ تنظیمات</button>
+    <button class="act" id="logBtn">📝 لاگ</button>
+    <span id="srv" class="srv bad">…</span>
+    <small>خروجی خودکار و آموزشی؛ توصیه سرمایه‌گذاری نیست.</small>
+  </div>
+  <div id="progress"><i></i></div>
+  <div id="msg"></div>
+  <pre id="log"></pre>
+</header>
+<div id="app"></div>
+
+<dialog id="dlg">
+  <form method="dialog">
+    <h3 style="margin-top:0">⚙ تنظیمات</h3>
+    <div id="srcBox"></div>
+    <details><summary>تنظیمات پیشرفته (JSON: نمادها، آستانه‌ها، فهرست سایت‌ها، Claude، اعلان)</summary>
+      <p class="mut">کلیدها (API، توکن ربات) فقط در مرورگر همین دستگاه ذخیره می‌شوند. روزهای بازار با شماره جاوااسکریپت: یکشنبه=۰ ... شنبه=۶.</p>
+      <textarea id="cfgText" class="q" spellcheck="false"></textarea>
+      <div id="cfgErr" class="dn"></div>
+    </details>
+    <div class="row">
+      <button class="act primary" id="cfgSave" value="ok">ذخیره و بستن</button>
+      <button class="act" id="cfgClose" type="button">بستن</button>
+      <button class="act" id="cfgReset" type="button">بازگشت به پیش‌فرض</button>
+      <button class="act" id="clearData" type="button">پاک‌کردن تاریخچه محلی</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+window.addEventListener('error',function(e){var b=document.getElementById('errbar');if(!b){b=document.createElement('pre');b.id='errbar';b.style.cssText='position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;margin:0;padding:8px;background:#b00020;color:#fff;font:12px/1.4 monospace;z-index:99;direction:ltr;white-space:pre-wrap';document.body.appendChild(b);}b.textContent+=(e.message||'error')+' @ '+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+'\n';});
+</script>
+<script src="js/util.js"></script>
+<script src="js/net.js"></script>
+<script src="js/store.js"></script>
+<script src="js/tsetmc.js"></script>
+<script src="js/sources.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/finance.js"></script>
+<script src="js/nlp.js"></script>
+<script src="js/config.js"></script>
+<script src="js/output.js"></script>
+<script src="js/collect.js"></script>
+<script src="js/remote.js"></script>
+<script src="js/cycle.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/demo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

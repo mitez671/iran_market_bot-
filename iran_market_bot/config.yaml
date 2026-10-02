@@ -1,0 +1,141 @@
+# ===================== تنظیمات سامانه پایش بازار =====================
+
+# فاصله اجرای چرخه‌ها در حالت --loop (دقیقه)
+interval_minutes: 15
+
+# ساعات بازار (به وقت تهران). روزها با شماره پایتون: دوشنبه=0 ... شنبه=5 یکشنبه=6
+# پیش‌فرض: شنبه تا چهارشنبه. اگر تعطیلی رسمی عوض شد، این را تغییر بده.
+market_hours:
+  days: [5, 6, 0, 1, 2]
+  start: "08:45"
+  end: "12:45"
+  run_outside_hours: true   # بیرون از ساعت بازار هم بازارهای جهانی/طلا/اخبار را پایش کند
+
+# --------------------- دیده‌بان ---------------------
+watchlist:
+  # سهام بورس و فرابورس (نماد دقیق مثل TSETMC)
+  stocks: [فولاد, فملی, شپنا, شبندر, خودرو, وبملت, شستا, کگل]
+
+  # صندوق‌های طلا / اهرمی / درآمد ثابت که مثل سهم معامله می‌شوند
+  funds: [طلا, عیار, کهربا, اهرم]
+
+  # اسناد خزانه (اخزا) به‌صورت خودکار پیدا می‌شوند و سررسیدشان از نام نماد خوانده می‌شود
+  auto_akhza: true
+  # اوراق بدون کوپن دیگر (مثل گام) را دستی اضافه کن؛ سررسید شمسی از صفحه نماد در TSETMC:
+  #   - {symbol: "گام0507", maturity: "1405/07/30", face: 1000000}
+  zero_coupon: []
+
+  # اختیار معامله: فقط نماد قرارداد را بنویس؛ اعمال، سررسید و دارایی پایه خودکار از نام قرارداد خوانده می‌شود
+  # نمونه: ضهرم... (اختیار خرید اهرم) ، طهرم... (اختیار فروش اهرم)
+  options: []
+
+# نرخ بازده بدون ریسک / بازده مورد انتظار اوراق (سالانه) — مثلاً بازده موثر اسناد خزانه
+benchmark_rate: auto   # auto = میانه بازده اخزاهای بازار؛ یا عدد ثابت مثل 0.38
+# حاشیه برای اعلام فرصت در اوراق (۰.۰۲ یعنی ۲ درصد بالاتر/پایین‌تر از بنچمارک)
+bond_margin: 0.015
+
+# --------------------- موتور سیگنال ---------------------
+signals:
+  min_score: 3          # حداقل امتیاز برای اعلام خرید/فروش
+  history_days: 250
+  # حباب سکه/طلا (درصد). بالاتر از این = فروش فیزیکی، پایین‌تر از منفی آن = خرید
+  coin_bubble_sell: 12
+  coin_bubble_buy: 2
+
+# --------------------- بازارهای جهانی (yfinance) ---------------------
+global_tickers:
+  gold_ounce: "GC=F"
+  silver: "SI=F"
+  copper: "HG=F"
+  brent: "BZ=F"
+  wti: "CL=F"
+  natgas: "NG=F"
+  dxy: "DX-Y.NYB"
+  sp500: "^GSPC"
+  bitcoin: "BTC-USD"
+  ethereum: "ETH-USD"
+  aluminum: "ALI=F"
+
+# حساسیت نمادهای ایرانی به عوامل جهانی و ارز (وزن مثبت = هم‌جهت)
+sensitivity:
+  فولاد: {usd_irr: 1.0, copper: 0.3, brent: 0.2}
+  کگل:  {usd_irr: 1.0, copper: 0.2}
+  فملی: {copper: 1.0, usd_irr: 1.0}
+  شپنا: {brent: 0.8, usd_irr: 1.0}
+  شبندر: {brent: 0.8, usd_irr: 1.0}
+  طلا:  {gold_ounce: 1.0, usd_irr: 1.0}
+  عیار: {gold_ounce: 1.0, usd_irr: 1.0}
+  کهربا: {gold_ounce: 1.0, usd_irr: 1.0}
+  خودرو: {usd_irr: -0.3}
+  وبملت: {usd_irr: 0.2}
+
+# --------------------- قیمت‌های داخلی طلا/سکه/ارز (tgju) ---------------------
+tgju_keys:
+  coin_emami: sekee
+  coin_half: nim
+  coin_quarter: rob
+  gold_18k: geram18
+  mesghal: mesghal
+  usd_irr: price_dollar_rl
+  eur_irr: price_eur
+  ounce: ons
+
+# --------------------- اخبار ---------------------
+# هر سایت: نام + آدرس صفحه (یا RSS). تیترهای اقتصادی خودکار جدا می‌شوند.
+news:
+  sites:
+    - {name: "پارسیک اقتصادی", url: "https://www.parseek.com/Economic/"}
+    - {name: "دنیای اقتصاد", url: "https://donya-e-eqtesad.com/"}
+    - {name: "اقتصادآنلاین", url: "https://www.eghtesadonline.com/"}
+    - {name: "اقتصادنیوز", url: "https://www.eghtesadnews.com/"}
+    - {name: "تجارت‌نیوز", url: "https://tejaratnews.com/"}
+    - {name: "بورس‌پرس", url: "https://boursepress.ir/"}
+    - {name: "سنا (بورس تهران)", url: "https://www.sena.ir/"}
+    - {name: "ایسنا اقتصادی", url: "https://www.isna.ir/service/Economy"}
+    - {name: "تسنیم اقتصادی", url: "https://www.tasnimnews.com/fa/service/7/"}
+    - {name: "ایرنا اقتصادی", url: "https://www.irna.ir/service/economy"}
+  max_items_per_query: 15
+  queries_fa: ["بورس تهران", "فرابورس", "نرخ دلار بازار آزاد", "قیمت سکه", "بانک مرکزی نرخ بهره", "تحریم ایران", "مذاکرات هسته‌ای", "بورس کالا", "اوراق گام", "حراج اوراق خزانه"]
+  queries_en: ["Iran sanctions oil", "OPEC oil price", "gold price Fed", "bitcoin market"]
+  parseek_urls: ["https://www.parseek.com/Economic/"]   # منبع اصلی اخبار اقتصادی
+  use_iran_rss: false     # ایسنا، ایرنا، مهر، خبرآنلاین، تسنیم
+  use_google_news: false  # فقط با VPN کار می‌کند
+  extra_rss: []   # آدرس RSS سایت‌های خبری دلخواه
+
+# --------------------- بازارهای دیگر (خودرو، آهن، مسکن، مصالح) ---------------------
+# جدول‌خوان عمومی: آدرس صفحه‌ای که جدول قیمت دارد + دسته. keep = کلماتی که ردیف باید داشته باشد (اختیاری)
+other_markets:
+  - {category: "خودرو", name: "همراه مکانیک", url: "https://www.hamrah-mechanic.com/carprice/", min_price: 100000000}
+  - {category: "آهن‌آلات", name: "آهن‌آنلاین میلگرد", url: "https://ahanonline.com/product-category/میلگرد/قیمت-میلگرد/", min_price: 1000}
+
+# --------------------- تحلیل اخبار ---------------------
+nlp:
+  use_parsbert: false   # مدل زبانی فارسی (نیاز به نصب transformers و torch؛ حجم زیاد)
+  parsbert_model: "HooshvareLab/bert-fa-base-uncased-sentiment-deepsentipers-binary"
+
+use_yahoo: false   # بدون VPN در دسترس نیست؛ قیمت‌های جهانی از tgju خوانده می‌شود
+
+# --------------------- تحلیل با Claude ---------------------
+# mode:
+#   manual       -> یک فایل پرامپت فشرده می‌سازد که در اپ Claude (اکانت Pro) آپلود/پیست کنی
+#   api          -> با کلید API (اکانت جدا و پولی؛ در console.anthropic.com) تحلیل خودکار
+#   claude_code  -> با دستور `claude -p` از Claude Code (ورود با اکانت Claude)
+use_nobitex: false   # نوبیتکس با VPN معمولاً جواب نمی‌دهد؛ اگر بدون VPN اجرا می‌کنی true کن
+
+llm:
+  mode: manual
+  model: claude-sonnet-5-5
+  use_web_search: true     # فقط در حالت api
+  max_tokens: 2500
+
+# --------------------- اعلان ---------------------
+notify:
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  bale:              # پیام‌رسان بله (API مشابه تلگرام)
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  only_on_change: true   # فقط وقتی سیگنال یک نماد عوض شد خبر بده

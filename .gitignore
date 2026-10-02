@@ -1,0 +1,10 @@
+# داده‌ها و خروجی‌های محلی (هر دستگاه خودش می‌سازد)
+iran_market_bot/data/*
+!iran_market_bot/data/.keep
+iran_market_bot/reports/*
+!iran_market_bot/reports/.keep
+__pycache__/
+*.pyc
+node_modules/
+.env
+*.log
