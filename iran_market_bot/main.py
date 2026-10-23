@@ -8,8 +8,10 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import logging
+import os
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -26,9 +28,9 @@ from sources import pricestore as P
 from sources import market as M
 from sources import news as N
 from sources import commodity as C
-from sources import net as NET
 from analysis import nlp as NL
 from analysis import dashboard as D
+from analysis import mlscan as MS
 
 ROOT = Path(__file__).resolve().parent
 TEHRAN = timezone(timedelta(hours=3, minutes=30))
@@ -69,7 +71,6 @@ def safe(fn, *a, default=None, what=""):
 
 # ============================================================ یک چرخه کامل
 def run_cycle(cfg: dict) -> list:
-    NET.reset()
     today = datetime.now(TEHRAN).date()
     sc, wl = cfg["signals"], cfg["watchlist"]
     status: dict[str, str] = {}
@@ -135,8 +136,11 @@ def run_cycle(cfg: dict) -> list:
     safe(P.save, {**{k: v["last"] for k, v in glob.items()}, **{k: v.get("price") for k, v in local.items()},
                   "tedpix": tedpix, "ifx": (overview.get("farabourse") or {}).get("index")}, what="ذخیره قیمت‌ها")
 
-    log.info("۶/۷ سیگنال‌های دیده‌بان شخصی…")
-    signals = []
+    log.info("۶/۷ اسکن کل بازار با مدل ML + سیگنال‌های دیده‌بان شخصی…")
+    ml = get("اسکن ML کل بازار", MS.scan, mw, cfg.get("ml", {}), default=None,
+             ok=lambda r: r["info"]) if cfg.get("ml", {}).get("enabled", True) and not mw.empty else None
+    ml_th = (MS.load_model() or {}).get("th", 0.8)
+    signals = list(ml["picks"]) if ml else []
     cache_hist = {}
     for market, syms in [("سهام", wl.get("stocks", [])), ("صندوق", wl.get("funds", []))]:
         for sym in syms:
@@ -150,6 +154,18 @@ def run_cycle(cfg: dict) -> list:
             ct = safe(T.client_type, info["ins_code"], default=None, what=f"حقیقی/حقوقی {sym}")
             inter = E.intermarket_score(T.normalize(sym), cfg.get("sensitivity", {}), glob, usd_chg)
             sig = E.stock_signal(sym, market, df, ct, inter, news_score, sc["min_score"])
+            if ml and sig.action == "BUY":
+                # فقط خریدهایی اعلام می‌شوند که مدل ML (بک‌تست‌شده) هم تأیید کند
+                p = ml["probs"].get(T.normalize(sym))
+                if p is None or p < ml_th:
+                    sig.action = "HOLD"
+                    sig.reasons.insert(0, f"⚠️ امتیاز تکنیکال بالا بود ولی مدل ML احتمال موفقیت را "
+                                          f"{'نامشخص' if p is None else f'{p*100:.0f}٪'} می‌داند (< {ml_th*100:.0f}٪) → خرید اعلام نشد")
+                    sig.stop = sig.target = None
+                else:
+                    sig.reasons.insert(0, f"✅ تأیید مدل ML: احتمال موفقیت {p*100:.0f}٪")
+            if ml and sig.action == "BUY" and any(s.symbol == T.normalize(sym) and s.market == "سهام (ML)" for s in signals):
+                continue  # همین نماد قبلاً با جزئیات کامل در پیشنهادهای ML آمده
             for h in (nlp.get("by_symbol") or {}).get(T.normalize(sym), [])[:2]:
                 sig.reasons.append(f"خبر: {h[:70]}")
             signals.append(sig)
@@ -205,9 +221,14 @@ def run_cycle(cfg: dict) -> list:
                      "price": s.price, "reasons": s.reasons} for s in signals],
         "data_sources": status,
     }
-    llm_text = O.run_llm(snapshot, cfg.get("llm", {}))
+    log.info("تحلیل Claude…")
+    t0 = time.time()
+    llm_text, status["تحلیل Claude"] = O.run_llm(snapshot, cfg.get("llm", {}))
+    if llm_text:
+        status["تحلیل Claude"] += f" ({time.time()-t0:.0f}s)"
+    llm_text, claude_imp = O.parse_impact(llm_text) if llm_text else (None, {})
     page = build_dashboard(cfg, signals, mw, idx, overview, breadth, screens, bonds, local, tgju_df, glob, news, codal,
-                           ime, ime_sum, other, nlp, narrative, status, llm_text)
+                           ime, ime_sum, other, nlp, narrative, status, llm_text, claude_imp)
 
     alerts = O.changed_signals(signals) if cfg["notify"].get("only_on_change", True) else \
         [s for s in signals if s.action != "HOLD"]
@@ -216,6 +237,14 @@ def run_cycle(cfg: dict) -> list:
         if llm_text:
             msg += "\n\n🤖 خلاصه Claude:\n" + llm_text[:2500]
         O.send(msg, cfg["notify"])
+    if cfg.get("_daily"):
+        buys = sorted([s for s in signals if s.action == "BUY"], key=lambda s: -s.score)
+        day = datetime.now(TEHRAN).strftime("%Y-%m-%d")
+        body = (f"پیشنهادهای خرید {day} ({len(buys)} مورد)\n\n" + "\n\n".join(O.format_alert(s) for s in buys)) if buys else \
+            "امروز مدل پیشنهاد خرید مطمئنی ندارد (بدون پیشنهاد = نگه‌داشتن نقدینگی)."
+        body += "\n\n⚠️ بک‌تست تضمین سود نیست؛ ضرر ممکن است. تصمیم نهایی با خودت."
+        ok_mail = O.send_email(f"سیگنال بورس {day}: {len(buys)} پیشنهاد خرید", body, cfg["notify"].get("email", {}), page)
+        status["ایمیل"] = "✅ ارسال شد" if ok_mail else "❌ ارسال نشد (تنظیمات notify.email را ببین)"
     print("\nوضعیت منابع:")
     for k, v in status.items():
         print(f"  {k}: {v}")
@@ -224,7 +253,7 @@ def run_cycle(cfg: dict) -> list:
 
 
 def build_dashboard(cfg, signals, mw, idx, overview, breadth, screens, bonds, local, tgju_df, glob, news, codal,
-                    ime, ime_sum, other, nlp, narrative, status, llm_text):
+                    ime, ime_sum, other, nlp, narrative, status, llm_text, claude_imp=None):
     t = {}
     sig_rows = [{"symbol": s.symbol, "market": s.market, "action": s.fa_action, "score": s.score, "price": s.price,
                  "stop": s.stop, "target": s.target, "reasons": " • ".join(s.reasons)} for s in
@@ -286,11 +315,23 @@ def build_dashboard(cfg, signals, mw, idx, overview, breadth, screens, bonds, lo
     nn_info = nlp.get("nn_info") or {}
     news_html += f"<p class='mut'>شبکه عصبی: {json.dumps(nn_info, ensure_ascii=False)}</p>"
 
+    # تحلیل Claude کنار قواعد و شبکه عصبی: همان شش بازار، مقیاس -۱ تا +۱
+    cimp = (claude_imp or {}).get("impact") or {}
+    if llm_text:
+        claude_html = "<div class='grid'>" + "".join(
+            f"<div class='kpi'><span>نظر Claude بر {a}</span><b class='{'up' if v > 0 else 'dn' if v < 0 else ''}'>{v:+.2f}</b></div>"
+            for a, v in cimp.items()) + "</div>"
+        if (claude_imp or {}).get("confidence") is not None:
+            claude_html += f"<p class='mut'>اطمینان Claude: {claude_imp['confidence']}</p>"
+        claude_html += f"<pre>{html.escape(llm_text)}</pre>"
+    else:
+        claude_html = f"<p class='mut'>{html.escape(status.get('تحلیل Claude', 'اجرا نشد'))}</p>"
+
     tabs = [
         ("t0", "خلاصه", [("html", "اثر اخبار امروز (قواعد اقتصادی + شبکه عصبی)", news_html),
+                          ("html", "تحلیل Claude (مدل زبانی)", claude_html),
                           ("table", "سیگنال‌ها", "signals"),
-                          ("text", "اثر بازارهای جهانی و ارز", "\n".join(narrative) or "—")]
-         + ([("text", "تحلیل Claude", llm_text)] if llm_text else [])),
+                          ("text", "اثر بازارهای جهانی و ارز", "\n".join(narrative) or "—")]),
         ("t1", "فرصت‌های کل بازار", [("table", k, f"scr{i}") for i, k in enumerate(screens)]),
         ("t2", "شاخص‌ها", [("table", "شاخص‌های منتخب و صنایع", "idx", "kind")]),
         ("t3", "دیده‌بان کامل", [("table", "همه نمادهای بورس و فرابورس", "mw", "category")]),
@@ -405,18 +446,33 @@ def install_demo():
                               {"title": "افزایش تنش و نگرانی از تحریم‌های جدید", "link": "#", "score": -2, "tags": ["سیاست/تحریم"]}]
 
 
+def set_no_proxy(hosts: list) -> None:
+    """دامنه‌هایی که باید بدون پروکسی وصل شوند (requests فقط NO_PROXY را می‌خواند، نه استثناهای ویندوز)."""
+    cur = [h.strip() for h in (os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or "").split(",") if h.strip()]
+    merged = ",".join(dict.fromkeys(cur + [h for h in hosts if h]))
+    os.environ["NO_PROXY"] = os.environ["no_proxy"] = merged
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--once", action="store_true")
     ap.add_argument("--loop", action="store_true")
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--daily", action="store_true", help="یک بار اجرا و ایمیل پیشنهادهای خرید (برای زمان‌بندی روزانه)")
     ap.add_argument("--config", default=str(ROOT / "config.yaml"))
     a = ap.parse_args()
-    NET.install()
     cfg = yaml.safe_load(Path(a.config).read_text(encoding="utf-8"))
+    set_no_proxy(cfg.get("no_proxy", []))
     if a.demo:
         install_demo()
         cfg["watchlist"]["options"] = ["ضهرم5009"]
+        cfg.setdefault("llm", {})["mode"] = "manual"
+        cfg["ml"] = {"enabled": False}  # داده دمو ساختگی است؛ مدل و کش واقعی را نباید لمس کند
+        run_cycle(cfg); return
+    if a.daily:
+        cfg["_daily"] = True
+        cfg.setdefault("llm", {})["mode"] = "manual"  # اجرای بی‌سرپرست؛ منتظر Claude نمی‌ماند
+        cfg["ml"] = {**cfg.get("ml", {}), "cache_minutes": 0}
         run_cycle(cfg); return
     if a.loop:
         while True:

@@ -5,6 +5,7 @@ import html
 import json
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -30,11 +31,34 @@ SYSTEM_PROMPT = (
 )
 
 
+IMPACT_HINT = (
+    "\n\nدر انتهای پاسخ دقیقاً یک بلوک ```json``` با این ساختار بگذار: "
+    '{"impact": {"بورس": x, "دلار": x, "طلا و سکه": x, "نفت": x, "مسکن": x, "خودرو": x}, "confidence": c} '
+    "که x برآورد تو از اثر خالص اخبار و داده‌های امروز بر آن بازار در چند روز آینده است، عددی بین -1 (منفی قوی) تا +1 (مثبت قوی)، "
+    "و c میزان اطمینانت بین 0 تا 1. این بلوک کنار خروجی قواعد اقتصادی و شبکه عصبی سامانه نمایش داده می‌شود."
+)
+
+
 def build_prompt(snapshot: dict) -> str:
-    return SYSTEM_PROMPT + "\n\n```json\n" + json.dumps(snapshot, ensure_ascii=False, indent=1, default=str) + "\n```"
+    return SYSTEM_PROMPT + IMPACT_HINT + "\n\n```json\n" + json.dumps(snapshot, ensure_ascii=False, indent=1, default=str) + "\n```"
 
 
-def run_llm(snapshot: dict, cfg: dict) -> str | None:
+def parse_impact(text: str) -> tuple[str, dict]:
+    """جدا کردن بلوک JSON اثر از متن تحلیل Claude."""
+    blocks = list(re.finditer(r"```json\s*(\{.*?\})\s*```", text or "", re.S))
+    if not blocks:
+        return text, {}
+    m = blocks[-1]
+    try:
+        data = json.loads(m.group(1))
+    except ValueError:
+        return text, {}
+    imp = {k: max(-1.0, min(1.0, float(v))) for k, v in (data.get("impact") or {}).items() if isinstance(v, (int, float))}
+    return (text[:m.start()] + text[m.end():]).strip(), {"impact": imp, "confidence": data.get("confidence")}
+
+
+def run_llm(snapshot: dict, cfg: dict) -> tuple[str | None, str]:
+    """خروجی: (متن تحلیل یا None، وضعیت برای جدول منابع)"""
     mode = cfg.get("mode", "manual")
     prompt = build_prompt(snapshot)
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -42,37 +66,48 @@ def run_llm(snapshot: dict, cfg: dict) -> str | None:
         p = REPORTS / f"claude_prompt_{stamp}.md"
         p.write_text(prompt, encoding="utf-8")
         log.info("پرامپت آماده شد: %s (در اپ Claude آپلود یا پیست کن)", p)
-        return None
+        return None, f"دستی: {p.name}"
     if mode == "api":
         try:
             import anthropic
         except ImportError:
-            log.error("pip install anthropic"); return None
+            return None, "❌ pip install anthropic"
         if not os.environ.get("ANTHROPIC_API_KEY"):
-            log.error("متغیر ANTHROPIC_API_KEY تنظیم نشده"); return None
+            return None, "❌ متغیر ANTHROPIC_API_KEY تنظیم نشده"
         client = anthropic.Anthropic()
         kw = dict(model=cfg.get("model", "claude-sonnet-5-5"), max_tokens=cfg.get("max_tokens", 2500),
-                  system=SYSTEM_PROMPT,
-                  messages=[{"role": "user", "content": prompt.replace(SYSTEM_PROMPT, "داده‌های امروز:")}])
+                  system=SYSTEM_PROMPT + IMPACT_HINT,
+                  messages=[{"role": "user", "content": prompt.replace(SYSTEM_PROMPT + IMPACT_HINT, "داده‌های امروز:")}])
         if cfg.get("use_web_search"):
             kw["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}]
         try:
             msg = client.messages.create(**kw)
             text = "\n".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         except Exception as e:  # noqa: BLE001
-            log.error("Claude API error: %s", e); return None
+            log.error("Claude API error: %s", e); return None, f"❌ {type(e).__name__}: {str(e)[:120]}"
     elif mode == "claude_code":
-        if not shutil.which("claude"):
-            log.error("Claude Code نصب نیست (npm i -g @anthropic-ai/claude-code)"); return None
+        exe = cfg.get("claude_path") or shutil.which("claude")
+        if not exe:
+            return None, "❌ Claude Code نصب نیست"
+        # تحلیل فقط متن می‌خواهد؛ ابزارهای اجرای دستور و تغییر فایل خاموش‌اند.
+        cmd = [exe, "-p", "--output-format", "text", "--model", cfg.get("model", "sonnet"),
+               "--disallowedTools", "Bash", "Edit", "Write", "NotebookEdit"]
+        if cfg.get("use_web_search"):
+            cmd += ["--allowedTools", "WebSearch"]
         try:
-            res = subprocess.run(["claude", "-p", prompt], capture_output=True, text=True, timeout=600)
-            text = res.stdout.strip() or res.stderr.strip()
+            res = subprocess.run(cmd, input=prompt.encode("utf-8"), capture_output=True, timeout=cfg.get("timeout", 600),
+                                 cwd=str(REPORTS))
+            text = res.stdout.decode("utf-8", "replace").strip()
+            if res.returncode != 0 or not text:
+                err = res.stderr.decode("utf-8", "replace").strip() or text
+                log.error("claude -p failed (%s): %s", res.returncode, err[:300])
+                return None, f"❌ claude: {err[:150]}"
         except Exception as e:  # noqa: BLE001
-            log.error("claude -p failed: %s", e); return None
+            log.error("claude -p failed: %s", e); return None, f"❌ {type(e).__name__}: {str(e)[:120]}"
     else:
-        log.error("llm.mode نامعتبر: %s", mode); return None
+        log.error("llm.mode نامعتبر: %s", mode); return None, f"❌ llm.mode نامعتبر: {mode}"
     (REPORTS / f"claude_analysis_{stamp}.md").write_text(text, encoding="utf-8")
-    return text
+    return text, "✅"
 
 
 # ============================================================ تاریخچه و اعلان
@@ -117,6 +152,28 @@ def send(text: str, ncfg: dict) -> None:
                               json={"chat_id": c["chat_id"], "text": chunk}, timeout=20).raise_for_status()
         except Exception as e:  # noqa: BLE001
             log.warning("ارسال %s ناموفق: %s", name, e)
+
+
+def send_email(subject: str, text: str, ecfg: dict, attach: Path | None = None) -> bool:
+    """ارسال ایمیل با SMTP (برای جیمیل: smtp.gmail.com:465 و «رمز برنامه»). رمز را ترجیحاً در متغیر محیطی EMAIL_PASSWORD بگذار."""
+    import smtplib
+    from email.message import EmailMessage
+    if not ecfg.get("enabled"):
+        return False
+    pw = os.environ.get("EMAIL_PASSWORD") or ecfg.get("password", "")
+    msg = EmailMessage()
+    msg["Subject"], msg["From"], msg["To"] = subject, ecfg["user"], ecfg.get("to") or ecfg["user"]
+    msg.set_content(text)
+    if attach and Path(attach).exists():
+        msg.add_attachment(Path(attach).read_bytes(), maintype="text", subtype="html", filename=Path(attach).name)
+    try:
+        with smtplib.SMTP_SSL(ecfg.get("host", "smtp.gmail.com"), int(ecfg.get("port", 465)), timeout=30) as s:
+            s.login(ecfg["user"], pw)
+            s.send_message(msg)
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("ارسال ایمیل ناموفق: %s", e)
+        return False
 
 
 # ============================================================ گزارش HTML

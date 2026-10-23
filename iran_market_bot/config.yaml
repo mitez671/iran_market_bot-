@@ -42,6 +42,14 @@ signals:
   coin_bubble_sell: 12
   coin_bubble_buy: 2
 
+# --------------------- اسکن کل بازار با مدل ML (بک‌تست‌شده) ---------------------
+# آستانه احتمال (۰٫۸) در مدل ذخیره شده است؛ برای تغییر آن backtest/train.py را عوض کن و دوباره آموزش بده.
+ml:
+  enabled: true
+  top_n: 5               # حداکثر پیشنهاد خرید در هر اسکن (بالاترین احتمال‌ها)
+  universe: 450          # تعداد نمادهای پرمعامله‌ای که اسکن می‌شوند
+  cache_minutes: 120     # نتیجه اسکن این‌قدر کش می‌شود (اسکن کامل چند دقیقه طول می‌کشد)
+
 # --------------------- بازارهای جهانی (yfinance) ---------------------
 global_tickers:
   gold_ounce: "GC=F"
@@ -113,7 +121,12 @@ nlp:
   use_parsbert: false   # مدل زبانی فارسی (نیاز به نصب transformers و torch؛ حجم زیاد)
   parsbert_model: "HooshvareLab/bert-fa-base-uncased-sentiment-deepsentipers-binary"
 
-use_yahoo: false   # بدون VPN در دسترس نیست؛ قیمت‌های جهانی از tgju خوانده می‌شود
+# --------------------- پروکسی ---------------------
+# دامنه‌هایی که پشت پروکسی/VPN جواب نمی‌دهند و باید مستقیم وصل شوند (به NO_PROXY اضافه می‌شوند).
+# tgju و دنیای اقتصاد را اضافه نکن؛ آن‌ها فقط از طریق پروکسی جواب می‌دهند.
+no_proxy: [tsetmc.com, parseek.com, eghtesadnews.com, hamrah-mechanic.com, ahanonline.com]
+
+use_yahoo: false  # بدون VPN در دسترس نیست؛ قیمت‌های جهانی از tgju خوانده می‌شود
 
 # --------------------- تحلیل با Claude ---------------------
 # mode:
@@ -123,9 +136,11 @@ use_yahoo: false   # بدون VPN در دسترس نیست؛ قیمت‌های �
 use_nobitex: false   # نوبیتکس با VPN معمولاً جواب نمی‌دهد؛ اگر بدون VPN اجرا می‌کنی true کن
 
 llm:
-  mode: manual
+  mode: claude_code        # با اکانت Pro از طریق Claude Code
   model: claude-sonnet-5-5
-  use_web_search: true     # فقط در حالت api
+  claude_path: ""          # خالی = از PATH
+  timeout: 600
+  use_web_search: true     # جستجوی وب برای اخبار لحظه‌ای
   max_tokens: 2500
 
 # --------------------- اعلان ---------------------
@@ -138,4 +153,11 @@ notify:
     enabled: false
     bot_token: ""
     chat_id: ""
+  email:             # برای `main.py --daily`
+    enabled: false
+    host: smtp.gmail.com
+    port: 465
+    user: ""         # آدرس جیمیل فرستنده
+    to: ""           # خالی = به خودت
+    password: ""     # «رمز برنامه» جیمیل (نه رمز اصلی)؛ بهتر است به‌جای اینجا در متغیر محیطی EMAIL_PASSWORD بگذاری
   only_on_change: true   # فقط وقتی سیگنال یک نماد عوض شد خبر بده

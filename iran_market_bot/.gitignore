@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.claude/
+reports/
+data/bt/
+data/*.db
+data/news_mlp.pkl
+data/ml_scan.json
+data/tgju_keys.txt

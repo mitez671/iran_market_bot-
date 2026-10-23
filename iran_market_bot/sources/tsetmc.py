@@ -15,8 +15,6 @@ from urllib.parse import quote
 import pandas as pd
 import requests
 
-from sources.net import HostDown
-
 log = logging.getLogger(__name__)
 
 BASE = "https://cdn.tsetmc.com/api"
@@ -48,8 +46,6 @@ def _get(path: str, retries: int | None = None):
             r = _session.get(BASE + path, timeout=TIMEOUT)
             r.raise_for_status()
             return r.json()
-        except HostDown as e:
-            raise RuntimeError(f"TSETMC request failed: {path} -> {e}") from e
         except Exception as e:  # noqa: BLE001
             last = e
             if i < retries - 1:
