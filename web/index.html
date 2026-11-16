@@ -8,24 +8,28 @@
 </head>
 <body>
 <header id="top">
-  <h1>داشبورد بازارهای مالی ایران</h1>
-  <div class="bar">
-    <button class="act" id="collectNo" title="فقط سایت‌هایی که در ⚙ تنظیمات «بدون VPN» گذاشته‌ای. VPN گوشی را خاموش کن.">🌐 دانلود بدون VPN</button>
-    <button class="act" id="collectVpn" title="فقط سایت‌هایی که در ⚙ تنظیمات «با VPN» گذاشته‌ای. VPN گوشی را روشن کن.">🔒 دانلود با VPN</button>
-    <button class="act primary" id="full" title="تحلیل کامل روی داده‌های جمع‌شده (بدون اینترنت)">✅ اجرای کامل از داده‌های جمع‌شده</button>
-    <button class="act" id="run" title="همه‌ی منابع را همین الان با شبکه‌ی فعلی می‌گیرد و تحلیل می‌کند">▶ اجرای مستقیم</button>
-    <button class="act" id="demo" title="داده ساختگی، بدون اینترنت">🧪 دمو</button>
-    <button class="act" id="auto" title="اجرای دوره‌ای (صفحه باید باز بماند)">🔁 خودکار</button>
-    <button class="act" id="copy" disabled>📋 کپی پرامپت Claude</button>
-    <button class="act" id="dl" disabled>⬇ دانلود پرامپت</button>
-    <button class="act" id="settings">⚙ تنظیمات</button>
-    <button class="act" id="logBtn">📝 لاگ</button>
-    <span id="srv" class="srv bad">…</span>
-    <small>خروجی خودکار و آموزشی؛ توصیه سرمایه‌گذاری نیست.</small>
+  <button class="act" id="toggleControls" type="button" aria-controls="dashboardControls" aria-expanded="true"
+    aria-label="جمع کردن نوار اجرا" title="جمع کردن نوار اجرا"><span aria-hidden="true"></span></button>
+  <div id="dashboardControls">
+    <h1>داشبورد بازارهای مالی ایران</h1>
+    <div class="bar">
+      <button class="act" id="collectNo" title="فقط سایت‌هایی که در ⚙ تنظیمات «بدون VPN» گذاشته‌ای. VPN گوشی را خاموش کن.">🌐 دانلود بدون VPN</button>
+      <button class="act" id="collectVpn" title="فقط سایت‌هایی که در ⚙ تنظیمات «با VPN» گذاشته‌ای. VPN گوشی را روشن کن.">🔒 دانلود با VPN</button>
+      <button class="act primary" id="full" title="تحلیل کامل روی داده‌های جمع‌شده (بدون اینترنت)">✅ اجرای کامل از داده‌های جمع‌شده</button>
+      <button class="act" id="run" title="همه‌ی منابع را همین الان با شبکه‌ی فعلی می‌گیرد و تحلیل می‌کند">▶ اجرای مستقیم</button>
+      <button class="act" id="demo" title="داده ساختگی، بدون اینترنت">🧪 دمو</button>
+      <button class="act" id="auto" title="اجرای دوره‌ای (صفحه باید باز بماند)">🔁 خودکار</button>
+      <button class="act" id="copy" disabled>📋 کپی پرامپت Claude</button>
+      <button class="act" id="dl" disabled>⬇ دانلود پرامپت</button>
+      <button class="act" id="settings">⚙ تنظیمات</button>
+      <button class="act" id="logBtn">📝 لاگ</button>
+      <span id="srv" class="srv bad">…</span>
+      <small>خروجی خودکار و آموزشی؛ توصیه سرمایه‌گذاری نیست.</small>
+    </div>
+    <div id="progress"><i></i></div>
+    <div id="msg"></div>
+    <pre id="log"></pre>
   </div>
-  <div id="progress"><i></i></div>
-  <div id="msg"></div>
-  <pre id="log"></pre>
 </header>
 <div id="app"></div>
 

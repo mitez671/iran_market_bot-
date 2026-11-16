@@ -72,6 +72,18 @@
   const setMsg = t => { $('msg').textContent = t; };
   const setProgress = f => { $('progress').firstElementChild.style.width = Math.round(f * 100) + '%'; };
   function fixStickyOffset() { document.documentElement.style.setProperty('--hh', $('top').offsetHeight + 'px'); }
+  function setControlsExpanded(expanded) {
+    const panel = $('dashboardControls');
+    const toggle = $('toggleControls');
+    const label = expanded ? 'جمع کردن نوار اجرا' : 'باز کردن نوار اجرا';
+    toggle.setAttribute('aria-expanded', String(expanded));
+    toggle.setAttribute('aria-label', label);
+    toggle.title = label;
+    if (!expanded && panel.contains(document.activeElement)) toggle.focus({ preventScroll: true });
+    panel.hidden = !expanded;
+    $('top').classList.toggle('controls-collapsed', !expanded);
+    fixStickyOffset();
+  }
   function setRunning(v) { running = v; ['run', 'demo', 'collectNo', 'collectVpn', 'full'].forEach(id => { $(id).disabled = v; }); fixStickyOffset(); }
 
   // ---------------------------------------------------------------- انتخاب سایت‌ها برای هر دکمه (تب «سایت‌ها و VPN» و ⚙ تنظیمات)
@@ -377,7 +389,13 @@
   const serverRun = (cfg, bundle, ids, hooks) => IM.Remote.run(cfg, bundle, ids, hooks, pingServer);
 
   // ---------------------------------------------------------------- عملیات
-  async function begin(ns) { setRunning(true); logEl().textContent = ''; Store.ns = ns; setProgress(0.03); }
+  async function begin(ns) {
+    setControlsExpanded(false);
+    setRunning(true);
+    logEl().textContent = '';
+    Store.ns = ns;
+    setProgress(0.03);
+  }
   function end() { Store.ns = 'im'; setProgress(0); setRunning(false); }
 
   /** دریافت منابع یک دسته ('novpn' | 'vpn') */
@@ -482,6 +500,7 @@
       window.addEventListener('focus', pingServer);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) pingServer(); });
     }
+    $('toggleControls').onclick = () => setControlsExpanded($('dashboardControls').hidden);
     $('run').onclick = () => run(false);
     $('demo').onclick = () => run(true);
     $('collectNo').onclick = () => collect('novpn');
@@ -503,7 +522,8 @@
     $('cfgClose').onclick = () => $('dlg').close();
     $('clearData').onclick = () => { if (confirm('تاریخچه قیمت‌ها، اخبار ذخیره‌شده، سابقه سیگنال‌ها و داده‌های جمع‌شده پاک شود؟ (تنظیمات می‌ماند)')) {
       Store.ns = 'im'; Store.clearNs(); bundle = { sources: {} }; idb.set('bundle', bundle); refreshSources(); setMsg('داده‌های محلی پاک شد.'); } };
-    window.addEventListener('resize', fixStickyOffset);
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fixStickyOffset).observe($('top'));
+    else window.addEventListener('resize', fixStickyOffset);
 
     const b = await idb.get('bundle'); if (b && b.sources) bundle = b;
     const last = await idb.get('last');

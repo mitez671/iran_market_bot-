@@ -4,6 +4,12 @@
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.6 Vazirmatn,Tahoma,sans-serif;direction:rtl}
 header{padding:12px 16px;border-bottom:1px solid var(--bd);background:var(--card);position:sticky;top:0;z-index:4}
 h1{margin:0 0 6px;font-size:18px}
+#dashboardControls h1{padding-inline-end:48px}
+#toggleControls{position:absolute;inset-block-start:4px;inset-inline-end:12px;width:44px;height:44px;padding:0;display:grid;place-items:center}
+#toggleControls span{width:9px;height:9px;border:solid currentColor;border-width:2px 0 0 2px;transform:translateY(2px) rotate(45deg)}
+#top.controls-collapsed{display:flex;justify-content:flex-end;padding:2px 12px}
+#top.controls-collapsed #toggleControls{position:static}
+#toggleControls[aria-expanded="false"] span{transform:translateY(-2px) rotate(225deg)}
 .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .bar small{color:var(--mut)}
 button.act{border:1px solid var(--bd);background:var(--bg);color:var(--fg);border-radius:8px;padding:6px 12px;cursor:pointer;font:inherit}
