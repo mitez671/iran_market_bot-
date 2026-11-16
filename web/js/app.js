@@ -22,7 +22,7 @@
   /** فقط تفاوت با پیش‌فرض ذخیره می‌شود؛ هم در مرورگر و هم (اگر سرور وصل باشد) در فایلی روی خود گوشی */
   function saveConfig(c) {
     cfg = merge(IM.DEFAULT_CONFIG, c);
-    try { localStorage.setItem(CFG_KEY, JSON.stringify(U.diff(IM.DEFAULT_CONFIG, cfg))); localStorage.setItem(CFG_PENDING, '1'); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(U.diff(IM.DEFAULT_CONFIG, cfg))); if (!Net.android) localStorage.setItem(CFG_PENDING, '1'); } catch (e) { /* ignore */ }
     pushSettings();
   }
 
@@ -91,7 +91,7 @@
   function renderSources(el) {
     el.innerHTML = `<div class="card"><h3>سایت‌ها و دکمه‌ی دانلودشان</h3>
       <p class="mut">پیش‌فرض: سایت‌های ایرانی <b>بدون VPN</b> و سایت‌های خارجی <b>با VPN</b>. هر کدام را خواستی عوض کن؛ انتخابت همان لحظه ذخیره می‌شود
-      (در مرورگر و در فایل تنظیمات روی گوشی) و دفعه‌ی بعد لازم نیست دوباره بزنی. <b>«دانلود بدون VPN»</b> فقط سایت‌های «بدون VPN» را می‌گیرد و <b>«دانلود با VPN»</b> فقط سایت‌های «با VPN» را؛
+      ${Net.android ? '(در حافظهٔ برنامه)' : '(در مرورگر و در فایل تنظیمات روی گوشی)'} و دفعه‌ی بعد لازم نیست دوباره بزنی. <b>«دانلود بدون VPN»</b> فقط سایت‌های «بدون VPN» را می‌گیرد و <b>«دانلود با VPN»</b> فقط سایت‌های «با VPN» را؛
       VPN گوشی را خودت قبل از زدن هر دکمه روشن یا خاموش کن. سایت‌های «غیرفعال» در هیچ‌کدام گرفته نمی‌شوند. در آخر «اجرای کامل از داده‌های جمع‌شده» را بزن.
       اگر دریافت یک سایت شکست بخورد، داده‌ی قبلیِ همان سایت می‌ماند.</p>
       <p class="chips"></p>
@@ -346,7 +346,8 @@
   const openTab = id => { activeTab = id; const b = document.querySelector(`nav button[data-s="${id}"]`); if (b) b.click(); };
 
   function paint() {
-    const view = curView || { kpis: [], tabs: [['t0', 'شروع', [['text', 'شروع', 'هنوز داده‌ای نیست.\n۰) در Termux بزن: sh start-termux.sh و این صفحه را از http://127.0.0.1:8787 باز کن (بالای صفحه باید «🟢 سرور ترموکس وصل است» ببینی).\n۱) سایت‌های ایرانی از پیش «بدون VPN» و خارجی «با VPN» هستند؛ اگر خواستی در ⚙ تنظیمات عوضشان کن (ذخیره می‌شود).\n۲) VPN گوشی را خاموش کن و «دانلود بدون VPN» را بزن؛ بعد VPN را روشن کن و «دانلود با VPN» را بزن.\n۳) «اجرای کامل از داده‌های جمع‌شده» را بزن.\nبرای دیدن نمونه «🧪 دمو» را بزن.']]]], tables: {} };
+    const setup = Net.android ? '' : '۰) در Termux بزن: sh start-termux.sh و این صفحه را از http://127.0.0.1:8787 باز کن (بالای صفحه باید «🟢 سرور ترموکس وصل است» ببینی).\n';
+    const view = curView || { kpis: [], tabs: [['t0', 'شروع', [['text', 'شروع', 'هنوز داده‌ای نیست.\n' + setup + '۱) سایت‌های ایرانی از پیش «بدون VPN» و خارجی «با VPN» هستند؛ اگر خواستی در ⚙ تنظیمات عوضشان کن (ذخیره می‌شود).\n۲) VPN گوشی را خاموش کن و «دانلود بدون VPN» را بزن؛ بعد VPN را روشن کن و «دانلود با VPN» را بزن.\n۳) «اجرای کامل از داده‌های جمع‌شده» را بزن.\nبرای دیدن نمونه «🧪 دمو» را بزن.']]]], tables: {} };
     Dashboard.render($('app'), view, { activeTab, onTab: id => { activeTab = id; }, extra: extraTabs() });
     fixStickyOffset();
   }
@@ -465,14 +466,22 @@
     renderSources($('srcBox')); $('dlg').showModal();
   }
   function download(name, text, type = 'text/markdown') {
+    if (Net.android) { Net.android.savePrompt(name, text); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: type + ';charset=utf-8' }));
     a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   async function init() {
     loadConfig(); updateCounts();
-    Collect.remote = serverRun; pingServer();
-    window.addEventListener('focus', pingServer); document.addEventListener('visibilitychange', () => { if (!document.hidden) pingServer(); });
+    if (Net.android) {
+      $('srv').textContent = 'دریافت داده از اینترنت گوشی';
+      $('srv').className = 'srv';
+      $('credentialStorage').textContent = 'کلید API و توکن ربات در حافظهٔ خصوصی برنامه ذخیره می‌شوند.';
+    } else {
+      Collect.remote = serverRun; pingServer();
+      window.addEventListener('focus', pingServer);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) pingServer(); });
+    }
     $('run').onclick = () => run(false);
     $('demo').onclick = () => run(true);
     $('collectNo').onclick = () => collect('novpn');
@@ -481,7 +490,7 @@
     $('auto').onclick = toggleAuto;
     $('logBtn').onclick = () => logEl().classList.toggle('show');
     $('settings').onclick = openSettings;
-    $('copy').onclick = async () => { try { await navigator.clipboard.writeText(lastPrompt); setMsg('پرامپت کپی شد؛ در اپ Claude پیست کن.'); } catch (e) { setMsg('کپی ناموفق بود؛ از «دانلود پرامپت» استفاده کن.'); } };
+    $('copy').onclick = async () => { try { if (Net.android) Net.android.copyPrompt(lastPrompt); else await navigator.clipboard.writeText(lastPrompt); setMsg('پرامپت کپی شد؛ در اپ Claude پیست کن.'); } catch (e) { setMsg('کپی ناموفق بود؛ از «دانلود پرامپت» استفاده کن.'); } };
     $('dl').onclick = () => download(`claude_prompt_${U.tehranNow().iso.replace(/[-:T]/g, '').slice(0, 12)}.md`, lastPrompt);
     $('cfgText').oninput = () => { cfgDirty = true; };
     $('cfgSave').onclick = e => {

@@ -34,7 +34,7 @@
     <h3 style="margin-top:0">⚙ تنظیمات</h3>
     <div id="srcBox"></div>
     <details><summary>تنظیمات پیشرفته (JSON: نمادها، آستانه‌ها، فهرست سایت‌ها، Claude، اعلان)</summary>
-      <p class="mut">کلیدها (API، توکن ربات) فقط در مرورگر همین دستگاه ذخیره می‌شوند. روزهای بازار با شماره جاوااسکریپت: یکشنبه=۰ ... شنبه=۶.</p>
+      <p class="mut"><span id="credentialStorage">کلیدها (API، توکن ربات) فقط در مرورگر همین دستگاه ذخیره می‌شوند.</span> روزهای بازار با شماره جاوااسکریپت: یکشنبه=۰ ... شنبه=۶.</p>
       <textarea id="cfgText" class="q" spellcheck="false"></textarea>
       <div id="cfgErr" class="dn"></div>
     </details>
@@ -47,9 +47,7 @@
   </form>
 </dialog>
 
-<script>
-window.addEventListener('error',function(e){var b=document.getElementById('errbar');if(!b){b=document.createElement('pre');b.id='errbar';b.style.cssText='position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;margin:0;padding:8px;background:#b00020;color:#fff;font:12px/1.4 monospace;z-index:99;direction:ltr;white-space:pre-wrap';document.body.appendChild(b);}b.textContent+=(e.message||'error')+' @ '+(e.filename||'').split('/').pop()+':'+(e.lineno||'')+'\n';});
-</script>
+<script src="js/errors.js"></script>
 <script src="js/util.js"></script>
 <script src="js/net.js"></script>
 <script src="js/store.js"></script>

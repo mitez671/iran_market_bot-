@@ -22,7 +22,7 @@
       messages: [{ role: 'user', content: 'داده‌های امروز:\n```json\n' + prompt.split('```json\n')[1] }] };
     if (cfg.use_web_search) body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }];
     try {
-      const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
+      const r = await Net.fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': cfg.api_key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
         body: JSON.stringify(body) });
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -34,7 +34,7 @@
   /** یک سؤال ساده از Claude با کلید API (بدون جستجوی وب). خروجی: متن پاسخ */
   O.ask = async (prompt, cfg, maxTokens = 2000) => {
     if (!cfg || cfg.mode !== 'api' || !cfg.api_key) throw new Error('حالت api یا کلید API در تنظیمات (llm) نیست');
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
+    const r = await Net.fetch('https://api.anthropic.com/v1/messages', { method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': cfg.api_key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({ model: cfg.model || 'claude-sonnet-5-5', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }) });
     if (!r.ok) throw new Error(`Claude: HTTP ${r.status} ${(await r.text()).slice(0, 160)}`);
@@ -54,7 +54,7 @@
       if (!c || !c.enabled || !c.bot_token || !c.chat_id) continue;
       try {
         for (let i = 0; i < text.length; i += 3800) {
-          const r = await fetch(`${base}/bot${c.bot_token}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' },
+          const r = await Net.fetch(`${base}/bot${c.bot_token}/sendMessage`, { method: 'POST', headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ chat_id: c.chat_id, text: text.slice(i, i + 3800) }) });
           if (!r.ok) throw new Error('HTTP ' + r.status);
         }
